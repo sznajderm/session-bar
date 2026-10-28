@@ -5,7 +5,8 @@ import Foundation
 enum Attention: Int {
     case needsYou = 0
     case yourTurn = 1
-    case working = 2
+    case background = 2
+    case working = 3
 }
 
 struct RegistryEntry: Decodable {
@@ -30,12 +31,12 @@ func parseRegistry(_ data: Data) -> RegistryEntry? {
     try? JSONDecoder().decode(RegistryEntry.self, from: data)
 }
 
-// A background shell keeps the status at "shell" after the turn ends, while the session waits for the user.
+// A background shell keeps the status at "shell" after the turn ends, while the session waits on it (a CodeRabbit review, CI).
 func getAttention(_ status: String, turnEnded: Bool) -> Attention {
     switch status {
     case "waiting": return .needsYou
     case "idle": return .yourTurn
-    case "shell" where turnEnded: return .yourTurn
+    case "shell" where turnEnded: return .background
     default: return .working
     }
 }

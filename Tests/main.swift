@@ -11,7 +11,7 @@ check("should flag a waiting session as needing the user", getAttention("waiting
 check("should flag an idle session as the user's turn", getAttention("idle", turnEnded: false) == .yourTurn)
 check("should treat any other status as working", getAttention("busy", turnEnded: false) == .working)
 check("should treat a shell mid-turn as working", getAttention("shell", turnEnded: false) == .working)
-check("should flag a background shell after the turn as the user's turn", getAttention("shell", turnEnded: true) == .yourTurn)
+check("should flag a background shell after the turn as waiting in the background", getAttention("shell", turnEnded: true) == .background)
 
 let entry = parseRegistry(Data("""
 {"pid":1,"sessionId":"TEST_ID","cwd":"/a","name":"TEST_NAME","status":"waiting","waitingFor":"input needed","kind":"interactive"}
