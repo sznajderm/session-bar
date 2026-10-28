@@ -10,6 +10,10 @@ A macOS menu bar app that watches your running [Claude Code](https://claude.com/
   - 🟡 **Background:** the session finished its turn but waits for a background task, for example a CodeRabbit review.
   - 🟢 **Working:** the session is busy.
 - **One-sentence summary.** Claude Haiku reads the end of each transcript and says what the session is doing.
+- **Session names.** Each session shows the first name that exists:
+  1. The name you gave the session in Claude Code.
+  2. The title of its [Warp](https://www.warp.dev) tab, if you renamed the tab.
+  3. The name that Claude Code made, for example `session-bar-96`.
 - **Ticket detection.** The app finds the Jira-style ticket key (for example `EMR-123`) that the session works on.
 - **Notifications.** You get a macOS notification when a session needs you or when it is your turn. A yellow session gives no notification until its background task ends.
 - **Menu bar count.** The icon shows how many sessions need you or wait for you. It does not count yellow sessions.
@@ -40,6 +44,7 @@ Then open `~/Applications/SessionBar.app`. To start it at login, add it in **Sys
 - Every 5 seconds, the app reads the session files in `~/.claude/sessions/`. It keeps only interactive sessions whose process is still alive.
 - For each session, it reads the end of the transcript in `~/.claude/projects/<project>/<session-id>.jsonl`.
 - A session is yellow when its status is `shell` and its transcript shows that the turn ended. This is the state while a background command runs, for example a wait for a CodeRabbit review.
+- For Warp tabs, the app reads `WARP_TERMINAL_SESSION_UUID` from the session process. Then it finds the tab title in the Warp database in read-only mode. The database has no documentation, so a Warp update can stop this lookup. The app then shows the Claude Code name.
 - When a transcript changes, the app runs `claude -p --model haiku` with no tools to make a one-sentence summary. It does this at most once per minute per session.
 - If the `claude` CLI is not available, the app shows the last transcript line instead.
 

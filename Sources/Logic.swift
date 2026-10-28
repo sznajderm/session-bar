@@ -14,6 +14,7 @@ struct RegistryEntry: Decodable {
     let sessionId: String
     let cwd: String
     let name: String?
+    let nameSource: String?
     let status: String?
     let waitingFor: String?
     let updatedAt: Double?
@@ -50,6 +51,21 @@ func getReason(_ entry: RegistryEntry, turnEnded: Bool) -> String {
     case "busy": return "working"
     case let other: return other
     }
+}
+
+// A name the user chose: one given in Claude Code, else the Warp tab title. Claude Code marks its own names "derived".
+func getCustomName(_ entry: RegistryEntry, warpTab: String?) -> String? {
+    if entry.nameSource != "derived", let name = entry.name, !name.isEmpty { return name }
+    return warpTab?.isEmpty == false ? warpTab : nil
+}
+
+// KERN_PROCARGS2 holds argc, the exec path, argv and then the environment, all NUL-separated.
+func findWarpSessionId(_ procargs: Data) -> String? {
+    let prefix = "WARP_TERMINAL_SESSION_UUID="
+    return procargs.split(separator: 0)
+        .map { String(decoding: $0, as: UTF8.self) }
+        .first { $0.hasPrefix(prefix) }
+        .map { String($0.dropFirst(prefix.count)).lowercased() }
 }
 
 // Claude Code names a project folder by its cwd with every non-alphanumeric character as '-'.
