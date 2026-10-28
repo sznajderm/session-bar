@@ -53,10 +53,12 @@ func getReason(_ entry: RegistryEntry, turnEnded: Bool) -> String {
     }
 }
 
-// A name the user chose: one given in Claude Code, else the Warp tab title. Claude Code marks its own names "derived".
-func getCustomName(_ entry: RegistryEntry, warpTab: String?) -> String? {
+// The name given in Claude Code, else the Warp tab title, else the AI title. Claude Code marks its own names "derived".
+func getDisplayName(_ entry: RegistryEntry, warpTab: String?, aiTitle: String) -> String {
     if entry.nameSource != "derived", let name = entry.name, !name.isEmpty { return name }
-    return warpTab?.isEmpty == false ? warpTab : nil
+    if let warpTab, !warpTab.isEmpty { return warpTab }
+    if !aiTitle.isEmpty { return aiTitle }
+    return entry.name ?? String(entry.sessionId.prefix(8))
 }
 
 // KERN_PROCARGS2 holds argc, the exec path, argv and then the environment, all NUL-separated.
@@ -114,35 +116,4 @@ func digestTranscript(_ tail: String) -> Digest {
 
 func getFallbackSentence(_ digest: Digest) -> String {
     digest.recent.last.map { clip($0, 120) } ?? "No activity yet."
-}
-
-// Only the assistant's own tool calls (Jira lookups, `/ship EMR-…`, commits) name the session's
-// ticket reliably; prompts and tool output echo `git log` and skill text full of other keys.
-// Any Jira-shaped key counts (EMR, WWW, MOBT, …); a letters-only prefix skips regex text like `Z0-9`.
-let ticketPattern = try! NSRegularExpression(pattern: #"\b[A-Z]{2,10}-\d+\b"#)
-// Standards and encodings that share the key shape but are never tickets.
-let nonTicketPrefixes: Set<String> = ["UTF", "ISO", "SHA", "RFC", "CVE", "TLS", "AES", "RSA", "HTTP", "GPT"]
-let ticketWindow = 30
-
-// The most mentioned ticket among the last mentions, so a session that moves on to a new ticket follows it.
-func findTicket(_ transcript: String) -> String? {
-    var mentions: [String] = []
-    for line in transcript.split(separator: "\n") where line.contains("\"tool_use\"") {
-        guard let data = line.data(using: .utf8),
-              let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              o["type"] as? String == "assistant",
-              let blocks = (o["message"] as? [String: Any])?["content"] as? [[String: Any]] else { continue }
-        for block in blocks where block["type"] as? String == "tool_use" {
-            guard let input = try? JSONSerialization.data(withJSONObject: block["input"] ?? [:]),
-                  let text = String(data: input, encoding: .utf8) else { continue }
-            let range = NSRange(text.startIndex..., in: text)
-            let keys = Set(ticketPattern.matches(in: text, range: range).compactMap { Range($0.range, in: text).map { String(text[$0]) } })
-                .filter { !nonTicketPrefixes.contains(String($0.prefix { $0 != "-" })) }
-            mentions.append(contentsOf: keys.sorted())
-        }
-    }
-    let recent = mentions.suffix(ticketWindow)
-    let counts = Dictionary(recent.map { ($0, 1) }, uniquingKeysWith: +)
-    // Ties go to the ticket mentioned last.
-    return counts.max { a, b in a.value != b.value ? a.value < b.value : recent.lastIndex(of: a.key)! < recent.lastIndex(of: b.key)! }?.key
 }

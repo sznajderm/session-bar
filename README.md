@@ -10,11 +10,11 @@ A macOS menu bar app that watches your running [Claude Code](https://claude.com/
   - 🟡 **Background:** the session finished its turn but waits for a background task, for example a CodeRabbit review.
   - 🟢 **Working:** the session is busy.
 - **One-sentence summary.** Claude Haiku reads the end of each transcript and says what the session is doing.
-- **Session names.** Each session shows the first name that exists:
-  1. The name you gave the session in Claude Code.
+- **Session names.** Each session shows one name. The app takes the first name that exists:
+  1. The name you gave the session in Claude Code, for example with `/rename`.
   2. The title of its [Warp](https://www.warp.dev) tab, if you renamed the tab.
-  3. The name that Claude Code made, for example `session-bar-96`.
-- **Ticket detection.** The app finds the Jira-style ticket key (for example `EMR-123`) that the session works on.
+  3. The AI title that Claude Code writes in the transcript.
+  4. The name that Claude Code made, for example `session-bar-96`. The app uses it until the AI title exists.
 - **Notifications.** You get a macOS notification when a session needs you or when it is your turn. A yellow session gives no notification until its background task ends.
 - **Menu bar count.** The icon shows how many sessions need you or wait for you. It does not count yellow sessions.
 - **Floating window.** A small window lists all sessions. It can stay on top of other windows.
@@ -44,7 +44,7 @@ Then open `~/Applications/SessionBar.app`. To start it at login, add it in **Sys
 - Every 5 seconds, the app reads the session files in `~/.claude/sessions/`. It keeps only interactive sessions whose process is still alive.
 - For each session, it reads the end of the transcript in `~/.claude/projects/<project>/<session-id>.jsonl`.
 - A session is yellow when its status is `shell` and its transcript shows that the turn ended. This is the state while a background command runs, for example a wait for a CodeRabbit review.
-- For Warp tabs, the app reads `WARP_TERMINAL_SESSION_UUID` from the session process. Then it finds the tab title in the Warp database in read-only mode. The database has no documentation, so a Warp update can stop this lookup. The app then shows the Claude Code name.
+- For Warp tabs, the app reads `WARP_TERMINAL_SESSION_UUID` from the session process. Then it finds the tab title in the Warp database in read-only mode. The database has no documentation, so a Warp update can stop this lookup. The app then uses the next name in the list.
 - When a transcript changes, the app runs `claude -p --model haiku` with no tools to make a one-sentence summary. It does this at most once per minute per session.
 - If the `claude` CLI is not available, the app shows the last transcript line instead.
 
@@ -54,7 +54,7 @@ Then open `~/Applications/SessionBar.app`. To start it at login, add it in **Sys
 
 | Path | Contents |
 |---|---|
-| `Sources/Logic.swift` | Pure logic: status rules, transcript parsing, ticket detection. |
+| `Sources/Logic.swift` | Pure logic: status rules, transcript parsing, session names. |
 | `Sources/App.swift` | SwiftUI menu bar app, window, polling and notifications. |
 | `Tests/main.swift` | Tests for `Logic.swift`. They run without Xcode. |
 | `build.sh` | Builds, tests and installs the app. |

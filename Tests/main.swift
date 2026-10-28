@@ -24,15 +24,19 @@ func registry(name: String, source: String) -> RegistryEntry {
 }
 check(
     "should prefer a name the user gave the session over the Warp tab",
-    getCustomName(registry(name: "TEST_NAME", source: "user"), warpTab: "TEST_TAB") == "TEST_NAME"
+    getDisplayName(registry(name: "TEST_NAME", source: "user"), warpTab: "TEST_TAB", aiTitle: "TEST_TITLE") == "TEST_NAME"
 )
 check(
-    "should use the Warp tab over a derived session name",
-    getCustomName(registry(name: "TEST_NAME", source: "derived"), warpTab: "TEST_TAB") == "TEST_TAB"
+    "should use the Warp tab over the AI title",
+    getDisplayName(registry(name: "TEST_NAME", source: "derived"), warpTab: "TEST_TAB", aiTitle: "TEST_TITLE") == "TEST_TAB"
 )
 check(
-    "should have no custom name for a derived name outside a titled Warp tab",
-    getCustomName(registry(name: "TEST_NAME", source: "derived"), warpTab: nil) == nil
+    "should use the AI title outside a titled Warp tab",
+    getDisplayName(registry(name: "TEST_NAME", source: "derived"), warpTab: nil, aiTitle: "TEST_TITLE") == "TEST_TITLE"
+)
+check(
+    "should fall back to the derived name before the AI title exists",
+    getDisplayName(registry(name: "TEST_NAME", source: "derived"), warpTab: nil, aiTitle: "") == "TEST_NAME"
 )
 
 let procargs = Data([1, 0, 0, 0] + Array("/bin/claude\0\0claude\0WARP_TERMINAL_SESSION_UUID=0B3EE32E\0HOME=/h\0".utf8))
@@ -64,31 +68,5 @@ let prompt = #"{"type":"user","message":{"content":"TEST_PROMPT"}}"#
 check("should see the turn end after the last reply", digestTranscript([reply, turnEnd].joined(separator: "\n")).turnEnded)
 check("should not see a turn end mid-turn", !digestTranscript(reply).turnEnded)
 check("should clear the turn end on a new prompt", !digestTranscript([reply, turnEnd, prompt].joined(separator: "\n")).turnEnded)
-
-func toolUse(_ input: String) -> String {
-    #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"\#(input)"}}]}}"#
-}
-
-check(
-    "should find the ticket the session's tool calls name most",
-    findTicket([toolUse("EMR-1"), toolUse("EMR-2 and EMR-2"), toolUse("EMR-2")].joined(separator: "\n")) == "EMR-2"
-)
-check(
-    "should ignore ticket keys that only appear in tool output",
-    findTicket(#"{"type":"user","message":{"content":[{"type":"tool_result","content":"\"tool_use\" EMR-9"}]}}"#) == nil
-)
-check(
-    "should prefer the latest ticket on a tie",
-    findTicket([toolUse("EMR-1"), toolUse("EMR-2")].joined(separator: "\n")) == "EMR-2"
-)
-
-check(
-    "should find a ticket from any project key",
-    findTicket(toolUse("WWW-42")) == "WWW-42"
-)
-check(
-    "should skip encodings and regex text that look like keys",
-    findTicket(toolUse("UTF-8 and [A-Z0-9]")) == nil
-)
 
 exit(failures == 0 ? 0 : 1)
