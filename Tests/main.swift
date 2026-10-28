@@ -19,6 +19,26 @@ let entry = parseRegistry(Data("""
 check("should read the waitingFor reason from a registry file", entry.map { getReason($0, turnEnded: false) } == "input needed")
 check("should reject a registry file that is not JSON", parseRegistry(Data("nope".utf8)) == nil)
 
+func registry(name: String, source: String) -> RegistryEntry {
+    parseRegistry(Data(#"{"pid":1,"sessionId":"TEST_ID","cwd":"/a","name":"\#(name)","nameSource":"\#(source)"}"#.utf8))!
+}
+check(
+    "should prefer a name the user gave the session over the Warp tab",
+    getCustomName(registry(name: "TEST_NAME", source: "user"), warpTab: "TEST_TAB") == "TEST_NAME"
+)
+check(
+    "should use the Warp tab over a derived session name",
+    getCustomName(registry(name: "TEST_NAME", source: "derived"), warpTab: "TEST_TAB") == "TEST_TAB"
+)
+check(
+    "should have no custom name for a derived name outside a titled Warp tab",
+    getCustomName(registry(name: "TEST_NAME", source: "derived"), warpTab: nil) == nil
+)
+
+let procargs = Data([1, 0, 0, 0] + Array("/bin/claude\0\0claude\0WARP_TERMINAL_SESSION_UUID=0B3EE32E\0HOME=/h\0".utf8))
+check("should find the Warp session id in a process environment", findWarpSessionId(procargs) == "0b3ee32e")
+check("should find no Warp session id outside Warp", findWarpSessionId(Data("claude\0HOME=/h\0".utf8)) == nil)
+
 check(
     "should build the transcript path from the cwd slug",
     getTranscriptPath(home: "/h", cwd: "/Users/x/my.proj", sessionId: "TEST_ID") == "/h/.claude/projects/-Users-x-my-proj/TEST_ID.jsonl"
