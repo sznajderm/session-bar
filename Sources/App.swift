@@ -66,7 +66,7 @@ final class Watcher: ObservableObject {
             if let before = lastAttention[entry.sessionId], before != attention {
                 let label = summaries[entry.sessionId]?.ticket ?? entry.name ?? "Claude"
                 if attention == .needsYou { notify(title: "\(label) needs you", body: reason) }
-                if attention == .yourTurn && before == .working { notify(title: "\(label) is your turn", body: reason) }
+                if attention == .yourTurn && (before == .working || before == .background) { notify(title: "\(label) is your turn", body: reason) }
             }
             lastAttention[entry.sessionId] = attention
             summarizeIfStale(entry)
@@ -175,6 +175,7 @@ struct PeerRow: View {
         switch peer.attention {
         case .needsYou: return .red
         case .yourTurn: return .orange
+        case .background: return .yellow
         case .working: return .green
         }
     }

@@ -7,6 +7,7 @@ A macOS menu bar app that watches your running [Claude Code](https://claude.com/
 - **Status per session.** Each session gets a colored dot:
   - 🔴 **Needs you:** the session waits for a permission or an answer.
   - 🟠 **Your turn:** the session finished and waits for the next prompt.
+  - 🟡 **Background:** the session finished its turn but waits for a background task, for example a CodeRabbit review.
   - 🟢 **Working:** the session is busy.
 - **One-sentence summary.** Claude Haiku reads the end of each transcript and says what the session is doing.
 - **Ticket detection.** The app finds the Jira-style ticket key (for example `EMR-123`) that the session works on.
