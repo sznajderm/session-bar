@@ -15,7 +15,7 @@ A macOS menu bar app that watches your running [Claude Code](https://claude.com/
   2. The title of its [Warp](https://www.warp.dev) tab, if you renamed the tab.
   3. The AI title that Claude Code writes in the transcript.
   4. The name that Claude Code made, for example `session-bar-96`. The app uses it until the AI title exists.
-- **Notifications.** You get a macOS notification when a session needs you or when it is your turn. A yellow session gives no notification until its background task ends. Click a notification to open the Claude app. The first time, macOS asks you to allow notifications from SessionBar. If you do not allow them, notifications still appear, but a click opens Script Editor.
+- **Notifications.** You get a macOS notification when a session needs you or when it is your turn. A yellow session gives no notification until its background task ends. Click a notification to open the app where the session runs: the Claude app for desktop sessions, or your terminal, such as Warp, for CLI sessions. The click does not select the Warp tab. The first time, macOS asks you to allow notifications from SessionBar. If you do not allow them, notifications still appear, but a click opens Script Editor.
 - **Menu bar count.** The icon shows how many sessions need you or wait for you. It does not count yellow sessions.
 - **Floating window.** A small window lists all sessions. It can stay on top of other windows.
 
@@ -47,6 +47,7 @@ Then open `~/Applications/SessionBar.app`. To start it at login, add it in **Sys
 - For Warp tabs, the app reads `WARP_TERMINAL_SESSION_UUID` from the session process. Then it finds the tab title in the Warp database in read-only mode. The database has no documentation, so a Warp update can stop this lookup. The app then uses the next name in the list.
 - When a transcript changes, the app runs `claude -p --model haiku` with no tools to make a one-sentence summary. It does this at most once per minute per session.
 - If the `claude` CLI is not available, the app shows the last transcript line instead.
+- To find the app where a session runs, the app follows the session process up to its parent processes. It stops at the first one that is a normal app with a window, such as Claude or Warp.
 
 > **Privacy:** The summaries send short transcript excerpts to Claude through your own `claude` CLI login. The app sends no other data.
 

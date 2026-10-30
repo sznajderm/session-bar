@@ -43,6 +43,11 @@ let procargs = Data([1, 0, 0, 0] + Array("/bin/claude\0\0claude\0WARP_TERMINAL_S
 check("should find the Warp session id in a process environment", findWarpSessionId(procargs) == "0b3ee32e")
 check("should find no Warp session id outside Warp", findWarpSessionId(Data("claude\0HOME=/h\0".utf8)) == nil)
 
+let parents: [Int32: Int32] = [30: 20, 20: 10, 10: 1]
+check("should find the first ancestor that is an app", findAncestor(30, parent: { parents[$0] }, matches: { $0 == 10 || $0 == 20 }) == 20)
+check("should find no ancestor when none is an app", findAncestor(30, parent: { parents[$0] }, matches: { _ in false }) == nil)
+check("should stop on a process tree loop", findAncestor(5, parent: { _ in 5 }, matches: { _ in false }) == nil)
+
 check(
     "should build the transcript path from the cwd slug",
     getTranscriptPath(home: "/h", cwd: "/Users/x/my.proj", sessionId: "TEST_ID") == "/h/.claude/projects/-Users-x-my-proj/TEST_ID.jsonl"
