@@ -15,7 +15,7 @@ A macOS menu bar app that watches your running [Claude Code](https://claude.com/
   2. The title of its [Warp](https://www.warp.dev) tab, if you renamed the tab.
   3. The AI title that Claude Code writes in the transcript.
   4. The name that Claude Code made, for example `session-bar-96`. The app uses it until the AI title exists.
-- **Notifications.** You get a macOS notification when a session needs you or when it is your turn. A yellow session gives no notification until its background task ends.
+- **Notifications.** You get a macOS notification when a session needs you or when it is your turn. A yellow session gives no notification until its background task ends. Click a notification to open the Claude app. The first time, macOS asks you to allow notifications from SessionBar. If you do not allow them, notifications still appear, but a click opens Script Editor.
 - **Menu bar count.** The icon shows how many sessions need you or wait for you. It does not count yellow sessions.
 - **Floating window.** A small window lists all sessions. It can stay on top of other windows.
 

@@ -1,6 +1,7 @@
 import AppKit
 import SQLite3
 import SwiftUI
+import UserNotifications
 
 struct Peer: Identifiable {
     let id: String
@@ -191,8 +192,57 @@ func askHaiku(_ excerpt: String) -> String? {
     return process.terminationStatus == 0 && !text.isEmpty ? clip(text, 200) : nil
 }
 
+private let claudeBundleId = "com.anthropic.claudefordesktop"
+
+// Clicking an osascript notification opens Script Editor, so post our own when macOS allows it.
+final class NotificationClicks: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationClicks()
+
+    func setUp() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        openClaude()
+        completionHandler()
+    }
+
+    // Show the banner even when SessionBar is the active app.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
+
+func openClaude() {
+    guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleId) else { return }
+    NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+}
+
 func notify(title: String, body: String) {
-    // osascript works for an ad-hoc signed app, where UNUserNotificationCenter often refuses.
+    // Ask each time: the user may allow notifications in System Settings after launch.
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+        guard settings.authorizationStatus == .authorized else {
+            NSLog("SessionBar: notifications not allowed (status \(settings.authorizationStatus.rawValue)), using osascript")
+            return notifyWithScript(title: title, body: body)
+        }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("Glass"))
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+    }
+}
+
+// Fallback: osascript always works, but clicking its notification opens Script Editor.
+private func notifyWithScript(title: String, body: String) {
     let escape = { (s: String) in s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -301,6 +351,7 @@ struct MenuBarLabel: View {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NotificationClicks.shared.setUp()
         // A menu-bar-only app builds its Window scene at launch but never shows it: bring it up here.
         DispatchQueue.main.async {
             NSApp.windows.first { $0.identifier?.rawValue.hasPrefix(windowId) == true }?.makeKeyAndOrderFront(nil)
