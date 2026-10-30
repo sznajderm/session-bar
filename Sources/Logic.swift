@@ -70,6 +70,18 @@ func findWarpSessionId(_ procargs: Data) -> String? {
         .map { String($0.dropFirst(prefix.count)).lowercased() }
 }
 
+// Walks up the process tree from a session to the first process that passes the check, such as Warp or the Claude app.
+func findAncestor(_ pid: Int32, parent: (Int32) -> Int32?, matches: (Int32) -> Bool) -> Int32? {
+    var current = pid
+    var seen: Set<Int32> = []
+    while current > 1, seen.insert(current).inserted {
+        if matches(current) { return current }
+        guard let next = parent(current) else { return nil }
+        current = next
+    }
+    return nil
+}
+
 // Claude Code names a project folder by its cwd with every non-alphanumeric character as '-'.
 func getTranscriptPath(home: String, cwd: String, sessionId: String) -> String {
     let slug = String(cwd.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) && $0.isASCII ? Character($0) : "-" })

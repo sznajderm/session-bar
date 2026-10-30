@@ -69,8 +69,10 @@ final class Watcher: ObservableObject {
                 entry, warpTab: warpSessionId(entry).flatMap { warpTabs[$0] }, aiTitle: summary?.title ?? ""
             )
             if let before = lastAttention[entry.sessionId], before != attention {
-                if attention == .needsYou { notify(title: "\(name) needs you", body: reason) }
-                if attention == .yourTurn && (before == .working || before == .background) { notify(title: "\(name) is your turn", body: reason) }
+                if attention == .needsYou { notify(title: "\(name) needs you", body: reason, pid: entry.pid) }
+                if attention == .yourTurn && (before == .working || before == .background) {
+                    notify(title: "\(name) is your turn", body: reason, pid: entry.pid)
+                }
             }
             lastAttention[entry.sessionId] = attention
             summarizeIfStale(entry)
@@ -140,6 +142,20 @@ func readProcessArgs(_ pid: Int32) -> Data? {
     return Data(buffer.prefix(size))
 }
 
+func readParentPid(_ pid: Int32) -> Int32? {
+    var info = kinfo_proc()
+    var size = MemoryLayout<kinfo_proc>.size
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+    guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+    return info.kp_eproc.e_ppid
+}
+
+// The app that hosts a session: the Claude app for desktop sessions, the terminal (Warp, iTerm and so on) for the CLI.
+func findHostApp(_ pid: Int32) -> URL? {
+    let app = { (pid: Int32) in NSRunningApplication(processIdentifier: pid).flatMap { $0.activationPolicy == .regular ? $0 : nil } }
+    return findAncestor(pid, parent: readParentPid, matches: { app($0) != nil }).flatMap { app($0)?.bundleURL }
+}
+
 // Maps each Warp pane's session id to the custom title of its tab.
 func readWarpTabTitles(home: String) -> [String: String] {
     var db: OpaquePointer?
@@ -192,9 +208,9 @@ func askHaiku(_ excerpt: String) -> String? {
     return process.terminationStatus == 0 && !text.isEmpty ? clip(text, 200) : nil
 }
 
-private let claudeBundleId = "com.anthropic.claudefordesktop"
+private let hostAppKey = "hostApp"
 
-// Clicking an osascript notification opens Script Editor, so post our own when macOS allows it.
+// Clicking an osascript notification opens Script Editor, so post our own and open the session's app on a click.
 final class NotificationClicks: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationClicks()
 
@@ -208,7 +224,9 @@ final class NotificationClicks: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        openClaude()
+        if let path = response.notification.request.content.userInfo[hostAppKey] as? String {
+            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: NSWorkspace.OpenConfiguration())
+        }
         completionHandler()
     }
 
@@ -221,12 +239,9 @@ final class NotificationClicks: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-func openClaude() {
-    guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleId) else { return }
-    NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-}
-
-func notify(title: String, body: String) {
+func notify(title: String, body: String, pid: Int32) {
+    // Find the app now: the session may have quit by the time you click.
+    let hostApp = findHostApp(pid)
     // Ask each time: the user may allow notifications in System Settings after launch.
     UNUserNotificationCenter.current().getNotificationSettings { settings in
         guard settings.authorizationStatus == .authorized else {
@@ -237,6 +252,7 @@ func notify(title: String, body: String) {
         content.title = title
         content.body = body
         content.sound = UNNotificationSound(named: UNNotificationSoundName("Glass"))
+        if let hostApp { content.userInfo = [hostAppKey: hostApp.path] }
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 }
