@@ -32,12 +32,12 @@ func parseRegistry(_ data: Data) -> RegistryEntry? {
     try? JSONDecoder().decode(RegistryEntry.self, from: data)
 }
 
-// A background shell keeps the status at "shell" after the turn ends, while the session waits on it (a CodeRabbit review, CI).
+// After the turn ends, a background shell keeps the status at "shell" and a background subagent keeps it at "busy".
 func getAttention(_ status: String, turnEnded: Bool) -> Attention {
     switch status {
     case "waiting": return .needsYou
     case "idle": return .yourTurn
-    case "shell" where turnEnded: return .background
+    case "shell" where turnEnded, "busy" where turnEnded: return .background
     default: return .working
     }
 }
@@ -47,6 +47,7 @@ func getReason(_ entry: RegistryEntry, turnEnded: Bool) -> String {
     case "waiting": return entry.waitingFor ?? "waiting for you"
     case "idle": return "finished, ready for the next prompt"
     case "shell" where turnEnded: return "finished, background shell still running"
+    case "busy" where turnEnded: return "finished, background task still running"
     case "shell": return "running a shell command"
     case "busy": return "working"
     case let other: return other
@@ -103,7 +104,8 @@ func digestTranscript(_ tail: String) -> Digest {
         if type == "ai-title", let title = o["aiTitle"] as? String { digest.title = title }
         if type == "last-prompt", let prompt = o["lastPrompt"] as? String { digest.lastPrompt = clip(prompt, 300) }
         if type == "system", o["subtype"] as? String == "turn_duration" { digest.turnEnded = true }
-        guard type == "assistant" || type == "user" else { continue }
+        // Hidden notes, such as the one a rename writes, are not a new turn.
+        guard type == "assistant" || type == "user", o["isMeta"] as? Bool != true else { continue }
         digest.turnEnded = false
         let content = (o["message"] as? [String: Any])?["content"]
         if let text = content as? String {

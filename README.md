@@ -43,7 +43,7 @@ Then open `~/Applications/SessionBar.app`. To start it at login, add it in **Sys
 
 - Every 5 seconds, the app reads the session files in `~/.claude/sessions/`. It keeps only interactive sessions whose process is still alive.
 - For each session, it reads the end of the transcript in `~/.claude/projects/<project>/<session-id>.jsonl`.
-- A session is yellow when its status is `shell` and its transcript shows that the turn ended. This is the state while a background command runs, for example a wait for a CodeRabbit review.
+- A session is yellow when its status is `shell` or `busy` and its transcript shows that the turn ended. This is the state while a background command or subagent runs, for example a wait for a CodeRabbit review.
 - For Warp tabs, the app reads `WARP_TERMINAL_SESSION_UUID` from the session process. Then it finds the tab title in the Warp database in read-only mode. The database has no documentation, so a Warp update can stop this lookup. The app then uses the next name in the list.
 - When a transcript changes, the app runs `claude -p --model haiku` with no tools to make a one-sentence summary. It does this at most once per minute per session.
 - If the `claude` CLI is not available, the app shows the last transcript line instead.

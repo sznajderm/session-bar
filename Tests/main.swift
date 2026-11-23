@@ -12,6 +12,7 @@ check("should flag an idle session as the user's turn", getAttention("idle", tur
 check("should treat any other status as working", getAttention("busy", turnEnded: false) == .working)
 check("should treat a shell mid-turn as working", getAttention("shell", turnEnded: false) == .working)
 check("should flag a background shell after the turn as waiting in the background", getAttention("shell", turnEnded: true) == .background)
+check("should flag a busy session after the turn as waiting in the background", getAttention("busy", turnEnded: true) == .background)
 
 let entry = parseRegistry(Data("""
 {"pid":1,"sessionId":"TEST_ID","cwd":"/a","name":"TEST_NAME","status":"waiting","waitingFor":"input needed","kind":"interactive"}
@@ -72,6 +73,8 @@ let turnEnd = #"{"type":"system","subtype":"turn_duration"}"#
 let prompt = #"{"type":"user","message":{"content":"TEST_PROMPT"}}"#
 check("should see the turn end after the last reply", digestTranscript([reply, turnEnd].joined(separator: "\n")).turnEnded)
 check("should not see a turn end mid-turn", !digestTranscript(reply).turnEnded)
+let metaNote = #"{"type":"user","isMeta":true,"message":{"content":"<system-reminder>TEST_NOTE</system-reminder>"}}"#
+check("should keep the turn end after a hidden note", digestTranscript([reply, turnEnd, metaNote].joined(separator: "\n")).turnEnded)
 check("should clear the turn end on a new prompt", !digestTranscript([reply, turnEnd, prompt].joined(separator: "\n")).turnEnded)
 
 exit(failures == 0 ? 0 : 1)
