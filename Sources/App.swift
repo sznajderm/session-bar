@@ -59,7 +59,7 @@ final class Watcher: ObservableObject {
         peers = entries.map { entry in
             let status = entry.status ?? "unknown"
             // Read fresh on each poll, not from the cached summary, so a new prompt clears it at once.
-            let turnEnded = status == "shell" && digestTranscript(readTail(
+            let turnEnded = (status == "shell" || status == "busy") && digestTranscript(readTail(
                 path: getTranscriptPath(home: home, cwd: entry.cwd, sessionId: entry.sessionId), bytes: tailBytes
             )).turnEnded
             let attention = getAttention(status, turnEnded: turnEnded)
